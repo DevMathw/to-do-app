@@ -1,0 +1,92 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.progressWrap {
+  padding: 12px 24px 14px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.progressRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.progressLabel {
+  font-size: 10px;
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.progressVal {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-muted);
+  font-family: var(--font-mono);
+}
+
+.progressBar {
+  height: 3px;
+  background: var(--surface3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.quickAddWrap {
+  padding: 12px 24px 4px;
+  flex-shrink: 0;
+  animation: slideDown 0.18s ease;
+}
+
+.taskArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 100px;
+}
+
+.fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 48px; height: 48px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(28,95,58,0.35);
+  transition: background var(--transition), transform 0.2s ease, box-shadow var(--transition);
+  z-index: 100;
+  border: none;
+  cursor: pointer;
+}
+.fab:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 6px 24px rgba(28,95,58,0.45);
+  transform: scale(1.06);
+}
+.fab:active { transform: scale(0.96); }
+.fabActive  { transform: rotate(45deg) !important; }
+.fabActive:hover { transform: rotate(45deg) scale(1.06) !important; }

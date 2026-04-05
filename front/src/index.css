@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&family=Cabinet+Grotesk:wght@400;500;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #F5F3EE;
+  --surface:      #FAFAF8;
+  --surface2:     #EFEFEA;
+  --surface3:     #E6E4DF;
+  --border:       rgba(0,0,0,0.09);
+  --border2:      rgba(0,0,0,0.14);
+  --border3:      rgba(0,0,0,0.22);
+
+  --text:         #1A1A18;
+  --muted:        #6B6B66;
+  --subtle:       #A8A8A3;
+
+  --accent:       #1C5F3A;
+  --accent-bg:    #EAF3DE;
+  --accent-muted: #3B6D11;
+  --accent-hover: #164D2F;
+
+  --danger:       #A32D2D;
+  --danger-bg:    #FCEBEB;
+  --danger-hover: #791F1F;
+
+  --warn:         #854F0B;
+  --warn-bg:      #FAEEDA;
+
+  --info:         #185FA5;
+  --info-bg:      #E6F1FB;
+
+  --p-high:       #C84B2F;
+  --p-high-bg:    #FAECE7;
+  --p-med:        #854F0B;
+  --p-med-bg:     #FAEEDA;
+  --p-low:        #1C5F3A;
+  --p-low-bg:     #EAF3DE;
+
+  --tag-work-bg:      #E6F1FB;
+  --tag-work-t:       #185FA5;
+  --tag-personal-bg:  #F3EEFE;
+  --tag-personal-t:   #534AB7;
+  --tag-design-bg:    #FBEAF0;
+  --tag-design-t:     #993556;
+  --tag-dev-bg:       #EAF3DE;
+  --tag-dev-t:        #1C5F3A;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body:    'Cabinet Grotesk', system-ui, sans-serif;
+  --font-mono:    'DM Mono', monospace;
+
+  --r:    10px;
+  --r-sm: 6px;
+  --r-lg: 14px;
+  --transition: 0.13s ease;
+}
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+button, input, textarea, select { font-family: var(--font-body); font-size: 14px; }
+button { cursor: pointer; border: none; background: none; }
+input, textarea { outline: none; border: none; background: none; color: var(--text); }
+a { color: inherit; text-decoration: none; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pop {
+  0%   { transform: scale(0.94); opacity: 0; }
+  60%  { transform: scale(1.02); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes checkPop {
+  0%   { transform: scale(0.5); }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.anim-fade-up    { animation: fadeUp    0.22s ease both; }
+.anim-pop        { animation: pop       0.22s ease both; }
+.anim-slide-down { animation: slideDown 0.18s ease both; }
