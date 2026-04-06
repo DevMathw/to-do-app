@@ -35,12 +35,12 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Compara una contraseña en texto plano con su hash almacenado."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password[:72], hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """Genera el hash bcrypt de una contraseña en texto plano."""
-    return pwd_context.hash(password)
+    return pwd_context.hash(password[:72])
 
 
 # ─── Funciones de JWT ─────────────────────────────────────────────────────────
