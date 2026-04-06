@@ -5,6 +5,10 @@
       "destination": "https://to-do-app-jdgr.onrender.com/api/:path*"
     },
     {
+      "source": "/api/",
+      "destination": "https://to-do-app-jdgr.onrender.com/api/"
+    },
+    {
       "source": "/((?!api).*)",
       "destination": "/index.html"
     }
