@@ -57,3 +57,7 @@
   font-family: var(--font-mono);
   color: var(--muted);
 }
+
+@media (max-width: 620px) {
+  .sectionBody { gap: 8px; }
+}

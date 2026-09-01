@@ -90,3 +90,75 @@
 .fab:active { transform: scale(0.96); }
 .fabActive  { transform: rotate(45deg) !important; }
 .fabActive:hover { transform: rotate(45deg) scale(1.06) !important; }
+
+/* --- Estados de carga y error ------------------------------------------- */
+
+.errorBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 24px 0;
+  padding: 10px 14px;
+  background: var(--danger-bg);
+  border: 1px solid rgba(163, 45, 45, 0.2);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--danger);
+}
+.errorBar button {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 4rem 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--surface3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Capa que oscurece el contenido cuando el menú lateral está abierto en móvil. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 24, 0.45);
+  z-index: 90;
+}
+
+/* --- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .layout { height: 100dvh; }
+  .scrim { display: block; }
+  .progressWrap { padding: 10px 16px 12px; }
+  .quickAddWrap { padding: 12px 16px 4px; }
+  .taskArea { padding: 12px 16px 96px; }
+  .errorBar { margin: 10px 16px 0; }
+}
+
+@media (min-width: 901px) {
+  .scrim { display: none; }
+}
+
+@media (max-width: 520px) {
+  .fab { bottom: 18px; right: 18px; width: 52px; height: 52px; }
+  .progressWrap { padding: 10px 14px; }
+  .taskArea { padding: 10px 14px 96px; }
+}

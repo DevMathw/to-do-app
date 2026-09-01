@@ -101,8 +101,10 @@
   flex-shrink: 0;
 }
 
+.userInfo  { min-width: 0; }
 .userName  { font-size: 13px; font-weight: 700; color: var(--text); }
-.userPlan  { font-size: 11px; color: var(--subtle); font-family: var(--font-mono); }
+.userEmail { font-size: 11px; color: var(--subtle); font-family: var(--font-mono);
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .logoutBtn {
   width: 100%;
@@ -118,4 +120,40 @@
   border-color: var(--danger);
   color: var(--danger);
   background: var(--danger-bg);
+}
+
+.navList { list-style: none; margin: 0; padding: 0; }
+
+.itemLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Botón de cierre: solo visible cuando la barra actúa como panel deslizante. */
+.closeBtn {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: 14px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.closeBtn:hover { background: var(--surface2); color: var(--text); }
+
+/* --- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(84vw, 280px);
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
+    height: 100dvh;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .closeBtn { display: flex; }
+  .navItem { padding: 11px 10px; font-size: 14.5px; }
 }

@@ -55,7 +55,7 @@
   max-width: 300px;
 }
 
-.features { display: flex; flex-direction: column; gap: 12px; }
+.features { display: flex; flex-direction: column; gap: 12px; list-style: none; margin: 0; padding: 0; }
 
 .feature {
   display: flex; align-items: center; gap: 12px;
@@ -164,4 +164,62 @@
 }
 .switchBtn:hover { color: var(--accent-hover); }
 
-@media (max-width: 800px) { .panel { display: none; } }
+.field { display: flex; flex-direction: column; }
+
+.srOnly {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Aviso informativo (sesión caducada, servidor despertando). No es un error. */
+.notice {
+  padding: 10px 14px;
+  background: var(--info-bg);
+  border: 1px solid rgba(24, 95, 165, 0.2);
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--info);
+}
+
+.demoBtn {
+  padding: 11px;
+  width: 100%;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.demoBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+.demoBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* --- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .panel { width: 380px; }
+  .panelInner { padding: 2.5rem; }
+  .headline { font-size: 34px; }
+}
+
+@media (max-width: 800px) {
+  .layout { flex-direction: column; min-height: 100dvh; }
+  /* El panel pasa a ser una cabecera compacta en lugar de desaparecer:
+     así la marca sigue presente en móvil. */
+  .panel { width: 100%; align-items: flex-start; }
+  .panelInner { padding: 1.75rem 1.5rem; }
+  .logo { margin-bottom: 1.25rem; }
+  .headline { font-size: 26px; margin-bottom: 0.5rem; }
+  .sub { margin-bottom: 0; max-width: none; font-size: 13px; }
+  .features { display: none; }
+  .formSide { padding: 2rem 1.25rem 3rem; align-items: flex-start; }
+  .formCard { max-width: 420px; margin: 0 auto; }
+  .formHeader { margin-bottom: 1.5rem; }
+  .formTitle { font-size: 24px; }
+}

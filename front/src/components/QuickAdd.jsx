@@ -1,17 +1,57 @@
-import { useState, useRef, useEffect } from 'react'
-import { useTaskStore, PRIORITIES, TAGS } from '../store/useTaskStore'
+import { useEffect, useRef, useState } from 'react'
+import { PRIORITIES, TAGS, useTaskStore } from '../store/useTaskStore'
 import s from './QuickAdd.module.css'
+
+const EMPTY = { title: '', description: '', priority: 'med', tag: 'work', due_date: '' }
 
 export default function QuickAdd({ onClose }) {
   const { addTask } = useTaskStore()
-  const [form, setForm] = useState({
-    title: '', description: '', priority: 'med', tag: 'work', due: '',
-  })
+  const [form, setForm] = useState(EMPTY)
   const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
-  const inputRef = useRef(null)
+  const [error, setError] = useState('')
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  const panelRef = useRef(null)
+  const inputRef = useRef(null)
+  // Se recuerda quién tenía el foco para devolvérselo al cerrar.
+  const openerRef = useRef(null)
+
+  useEffect(() => {
+    openerRef.current = document.activeElement
+    inputRef.current?.focus()
+    return () => openerRef.current?.focus?.()
+  }, [])
+
+  // Escape cierra, y Tab queda atrapado dentro del panel mientras está abierto.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return
+
+      const focusables = panelRef.current.querySelectorAll(
+        'button:not([disabled]), input, select, textarea, [href]',
+      )
+      if (!focusables.length) return
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    const node = panelRef.current
+    node?.addEventListener('keydown', onKeyDown)
+    return () => node?.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -27,81 +67,90 @@ export default function QuickAdd({ onClose }) {
     }
   }
 
-  const onChange = (field) => (e) =>
-    setForm(f => ({ ...f, [field]: e.target.value }))
-
-  const priority = PRIORITIES.find(p => p.value === form.priority)
-  const tag      = TAGS.find(t => t.value === form.tag)
+  const selectedPriority = PRIORITIES.find((p) => p.value === form.priority)
 
   return (
-    <form className={s.form} onSubmit={onSubmit}>
+    <form
+      ref={panelRef}
+      className={s.form}
+      onSubmit={onSubmit}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Nueva tarea"
+    >
       <div className={s.main}>
-        {/* Priority dot indicator */}
-        <span className={s.prioDot} style={{ background: priority?.color }} />
-
+        <span
+          className={s.prioDot}
+          style={{ background: selectedPriority?.color }}
+          aria-hidden="true"
+        />
+        <label className={s.srOnly} htmlFor="quickadd-title">
+          Título de la tarea
+        </label>
         <input
           ref={inputRef}
+          id="quickadd-title"
           className={s.input}
           value={form.title}
-          onChange={onChange('title')}
+          onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           placeholder="¿En qué estás trabajando? (Enter para guardar, Esc para cerrar)"
-          onKeyDown={e => { if (e.key === 'Escape') onClose() }}
         />
       </div>
 
       <div className={s.toolbar}>
         <div className={s.toolbarLeft}>
-          {/* Priority selector */}
-          <div className={s.toolGroup}>
-            {PRIORITIES.map(p => (
+          <div className={s.toolGroup} role="group" aria-label="Prioridad">
+            {PRIORITIES.map((p) => (
               <button
                 key={p.value}
                 type="button"
                 className={`${s.toolBtn} ${form.priority === p.value ? s.toolActive : ''}`}
                 style={form.priority === p.value ? { borderColor: p.color, color: p.color } : {}}
-                onClick={() => setForm(f => ({ ...f, priority: p.value }))}
-                title={`Prioridad: ${p.label}`}
+                onClick={() => setForm((f) => ({ ...f, priority: p.value }))}
+                aria-pressed={form.priority === p.value}
               >
-                <span className={s.dot} style={{ background: p.color }} />
+                <span className={s.dot} style={{ background: p.color }} aria-hidden="true" />
                 {p.label}
               </button>
             ))}
           </div>
 
-          <div className={s.sep} />
+          <div className={s.sep} aria-hidden="true" />
 
-          {/* Tag selector */}
-          <div className={s.toolGroup}>
-            {TAGS.map(t => (
+          <div className={s.toolGroup} role="group" aria-label="Etiqueta">
+            {TAGS.map((t) => (
               <button
                 key={t.value}
                 type="button"
                 className={`${s.toolBtn} ${form.tag === t.value ? s.toolActive : ''}`}
-                style={form.tag === t.value
-                  ? { background: t.bg, borderColor: 'transparent', color: t.textColor }
-                  : {}
+                style={
+                  form.tag === t.value
+                    ? { background: t.bg, borderColor: 'transparent', color: t.textColor }
+                    : {}
                 }
-                onClick={() => setForm(f => ({ ...f, tag: t.value }))}
+                onClick={() => setForm((f) => ({ ...f, tag: t.value }))}
+                aria-pressed={form.tag === t.value}
               >
                 {t.label}
               </button>
             ))}
           </div>
 
-          <div className={s.sep} />
+          <div className={s.sep} aria-hidden="true" />
 
-          {/* Due date */}
+          <label className={s.srOnly} htmlFor="quickadd-due">
+            Fecha límite
+          </label>
           <input
+            id="quickadd-due"
             type="date"
             className={s.dateInput}
-            value={form.due}
-            onChange={onChange('due')}
-            title="Fecha límite"
+            value={form.due_date}
+            onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
           />
         </div>
 
         <div className={s.toolbarRight}>
-          {error && <span className={s.error}>{error}</span>}
           <button type="button" className={s.cancelBtn} onClick={onClose}>
             Cancelar
           </button>
@@ -110,10 +159,16 @@ export default function QuickAdd({ onClose }) {
             className={s.submitBtn}
             disabled={loading || !form.title.trim()}
           >
-            {loading ? '...' : 'Agregar tarea'}
+            {loading ? 'Guardando…' : 'Agregar tarea'}
           </button>
         </div>
       </div>
+
+      {error && (
+        <p className={s.error} role="alert">
+          {error}
+        </p>
+      )}
     </form>
   )
 }

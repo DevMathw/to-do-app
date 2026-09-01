@@ -1,65 +1,113 @@
 import { create } from 'zustand'
 import * as api from '../api/client'
 
+/**
+ * Única fuente de verdad para prioridades y etiquetas.
+ * Antes estaban duplicadas en el store, en TopBar y en Sidebar, con colores
+ * distintos en cada sitio.
+ */
 export const PRIORITIES = [
-  { value: 'high', label: 'Alta',  color: 'var(--p-high)' },
-  { value: 'med',  label: 'Media', color: 'var(--p-med)'  },
-  { value: 'low',  label: 'Baja',  color: 'var(--p-low)'  },
+  { value: 'high', label: 'Alta', color: 'var(--p-high)' },
+  { value: 'med', label: 'Media', color: 'var(--p-med)' },
+  { value: 'low', label: 'Baja', color: 'var(--p-low)' },
 ]
 
 export const TAGS = [
-  { value: 'work',     label: 'Trabajo',  textColor: 'var(--tag-work-t)',     bg: 'var(--tag-work-bg)'     },
+  { value: 'work', label: 'Trabajo', textColor: 'var(--tag-work-t)', bg: 'var(--tag-work-bg)' },
   { value: 'personal', label: 'Personal', textColor: 'var(--tag-personal-t)', bg: 'var(--tag-personal-bg)' },
-  { value: 'design',   label: 'Diseño',   textColor: 'var(--tag-design-t)',   bg: 'var(--tag-design-bg)'   },
-  { value: 'dev',      label: 'Dev',      textColor: 'var(--tag-dev-t)',       bg: 'var(--tag-dev-bg)'      },
+  { value: 'design', label: 'Diseño', textColor: 'var(--tag-design-t)', bg: 'var(--tag-design-bg)' },
+  { value: 'dev', label: 'Dev', textColor: 'var(--tag-dev-t)', bg: 'var(--tag-dev-bg)' },
 ]
 
+export const priorityOf = (value) =>
+  PRIORITIES.find((p) => p.value === value) ?? PRIORITIES[1]
+
+export const tagOf = (value) => TAGS.find((t) => t.value === value) ?? TAGS[0]
+
 export const useTaskStore = create((set, get) => ({
-  tasks:   [],
+  tasks: [],
+  total: 0,
   loading: false,
-  error:   null,
+  error: null,
+
+  clearError: () => set({ error: null }),
 
   fetchTasks: async () => {
     set({ loading: true, error: null })
     try {
-      const tasks = await api.getTasks()
-      set({ tasks: tasks.map(decorateTask), loading: false })
-    } catch (e) {
-      set({ error: e.message, loading: false })
+      // La API devuelve { items, total, skip, limit }.
+      const page = await api.getTasks({ limit: 200 })
+      set({ tasks: page.items, total: page.total, loading: false })
+    } catch (error) {
+      set({ error: error.message, loading: false })
+      throw error
     }
   },
 
-  addTask: async ({ title, description, priority, tag, due }) => {
-    const task = await api.createTask({ title, description })
-    const decorated = decorateTask(task, { priority, tag, due })
-    set(s => ({ tasks: [decorated, ...s.tasks] }))
-    return decorated
+  addTask: async (data) => {
+    // Todos los campos viajan al servidor y se persisten.
+    const task = await api.createTask({
+      title: data.title.trim(),
+      description: data.description?.trim() || null,
+      priority: data.priority,
+      tag: data.tag,
+      due_date: data.due_date || null,
+    })
+    set((state) => ({ tasks: [task, ...state.tasks], total: state.total + 1 }))
+    return task
   },
 
   toggleTask: async (id) => {
-    const task = get().tasks.find(t => t.id === id)
+    const previous = get().tasks
+    const task = previous.find((t) => t.id === id)
     if (!task) return
-    const updated = await api.updateTask(id, { completed: !task.completed })
-    set(s => ({ tasks: s.tasks.map(t => t.id === id ? { ...t, ...updated } : t) }))
+
+    // Actualización optimista: la interfaz responde al instante y revierte
+    // si el servidor rechaza el cambio.
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t,
+      ),
+    }))
+
+    try {
+      const updated = await api.updateTask(id, { completed: !task.completed })
+      set((state) => ({
+        tasks: state.tasks.map((t) => (t.id === id ? updated : t)),
+      }))
+    } catch (error) {
+      set({ tasks: previous, error: error.message })
+      throw error
+    }
   },
 
   editTask: async (id, data) => {
-    const updated = await api.updateTask(id, { title: data.title, description: data.description })
-    set(s => ({
-      tasks: s.tasks.map(t =>
-        t.id === id ? { ...t, ...updated, priority: data.priority, tag: data.tag, due: data.due } : t
-      ),
+    const updated = await api.updateTask(id, {
+      title: data.title.trim(),
+      description: data.description?.trim() || null,
+      priority: data.priority,
+      tag: data.tag,
+      due_date: data.due_date || null,
+    })
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? updated : t)),
     }))
+    return updated
   },
 
   removeTask: async (id) => {
-    await api.deleteTask(id)
-    set(s => ({ tasks: s.tasks.filter(t => t.id !== id) }))
+    const previous = get().tasks
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id),
+      total: Math.max(0, state.total - 1),
+    }))
+    try {
+      await api.deleteTask(id)
+    } catch (error) {
+      set({ tasks: previous, total: previous.length, error: error.message })
+      throw error
+    }
   },
-}))
 
-const pCycle = ['high', 'med', 'low']
-let _i = 0
-function decorateTask(task, extra = {}) {
-  return { priority: pCycle[_i++ % 3], tag: 'work', due: null, ...task, ...extra }
-}
+  reset: () => set({ tasks: [], total: 0, loading: false, error: null }),
+}))

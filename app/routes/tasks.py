@@ -1,98 +1,110 @@
 """
-Rutas CRUD para tareas. Todas las rutas requieren autenticación JWT.
-Cada usuario solo puede ver y modificar sus propias tareas.
+CRUD de tareas. Todas las rutas exigen autenticación y cada usuario solo
+puede ver y modificar las suyas.
 """
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user
 from app.database.session import get_db
 from app.models.task import Task
 from app.models.user import User
-from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
-from app.core.security import get_current_user
+from app.schemas.task import (
+    Priority,
+    Tag,
+    TaskCreate,
+    TaskPage,
+    TaskResponse,
+    TaskUpdate,
+)
 
 router = APIRouter()
 
 
-def get_task_or_404(task_id: int, current_user: User, db: Session) -> Task:
+def get_owned_task(task_id: int, current_user: User, db: Session) -> Task:
     """
-    Helper reutilizable: busca una tarea por ID y valida que pertenece al usuario actual.
-    Lanza 404 si no existe, y 403 si pertenece a otro usuario.
+    Recupera una tarea comprobando la propiedad.
+
+    Devuelve 404 también cuando la tarea existe pero es de otro usuario: un
+    403 confirmaría al atacante que ese id existe.
     """
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
+    task = db.query(Task).filter(Task.id == task_id, Task.owner_id == current_user.id).first()
+    if task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tarea con id {task_id} no encontrada",
         )
-    if task.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permiso para acceder a esta tarea",
-        )
     return task
 
 
-# ─── CREATE ───────────────────────────────────────────────────────────────────
-
-@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear una tarea",
+)
 def create_task(
     task_data: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Crea una nueva tarea para el usuario autenticado."""
-    new_task = Task(
-        title=task_data.title,
-        description=task_data.description,
-        owner_id=current_user.id,
-    )
-    db.add(new_task)
+    task = Task(**task_data.model_dump(), owner_id=current_user.id)
+    db.add(task)
     db.commit()
-    db.refresh(new_task)
-    return new_task
+    db.refresh(task)
+    return task
 
 
-# ─── READ ALL ─────────────────────────────────────────────────────────────────
-
-@router.get("/", response_model=List[TaskResponse])
-def get_tasks(
-    skip: int = 0,
-    limit: int = 100,
+@router.get("", response_model=TaskPage, summary="Listar tareas del usuario")
+def list_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    completed: bool | None = Query(None, description="Filtrar por estado"),
+    priority: Priority | None = Query(None, description="Filtrar por prioridad"),
+    tag: Tag | None = Query(None, description="Filtrar por etiqueta"),
+    search: str | None = Query(
+        None, min_length=1, max_length=100, description="Buscar en título y descripción"
+    ),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
 ):
-    """
-    Obtiene todas las tareas del usuario autenticado.
-    Soporta paginación con los parámetros skip y limit.
-    """
-    tasks = (
-        db.query(Task)
-        .filter(Task.owner_id == current_user.id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    return tasks
+    query = db.query(Task).filter(Task.owner_id == current_user.id)
+
+    if completed is not None:
+        query = query.filter(Task.completed.is_(completed))
+    if priority is not None:
+        query = query.filter(Task.priority == priority)
+    if tag is not None:
+        query = query.filter(Task.tag == tag)
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(or_(Task.title.ilike(pattern), Task.description.ilike(pattern)))
+
+    total = query.count()
+
+    # Orden explícito: sin ORDER BY el orden lo decide el motor y cambia al
+    # actualizar filas. Se desempata por id para que sea estable.
+    items = query.order_by(Task.created_at.desc(), Task.id.desc()).offset(skip).limit(limit).all()
+
+    return TaskPage(items=items, total=total, skip=skip, limit=limit)
 
 
-# ─── READ ONE ─────────────────────────────────────────────────────────────────
-
-@router.get("/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}", response_model=TaskResponse, summary="Obtener una tarea")
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Obtiene una tarea específica por su ID."""
-    return get_task_or_404(task_id, current_user, db)
+    return get_owned_task(task_id, current_user, db)
 
 
-# ─── UPDATE ───────────────────────────────────────────────────────────────────
-
-@router.put("/{task_id}", response_model=TaskResponse)
+@router.patch(
+    "/{task_id}",
+    response_model=TaskResponse,
+    summary="Actualizar parcialmente una tarea",
+)
 def update_task(
     task_id: int,
     task_data: TaskUpdate,
@@ -100,14 +112,19 @@ def update_task(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Actualiza una tarea. Solo se modifican los campos enviados en el body.
-    Permite actualizar título, descripción y/o estado (completado).
+    PATCH y no PUT: solo se aplican los campos enviados, el recurso no se
+    reemplaza por completo.
     """
-    task = get_task_or_404(task_id, current_user, db)
+    task = get_owned_task(task_id, current_user, db)
 
-    # Actualizar solo los campos proporcionados (exclude_unset ignora los no enviados)
-    update_data = task_data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    updates = task_data.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se envió ningún campo para actualizar",
+        )
+
+    for field, value in updates.items():
         setattr(task, field, value)
 
     db.commit()
@@ -115,15 +132,16 @@ def update_task(
     return task
 
 
-# ─── DELETE ───────────────────────────────────────────────────────────────────
-
-@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una tarea",
+)
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Elimina una tarea permanentemente. Devuelve 204 sin contenido."""
-    task = get_task_or_404(task_id, current_user, db)
+    task = get_owned_task(task_id, current_user, db)
     db.delete(task)
     db.commit()

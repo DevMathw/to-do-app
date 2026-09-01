@@ -1,64 +1,66 @@
-"""
-Rutas de autenticación: registro de usuarios y login con JWT.
-"""
+"""Rutas de autenticación: registro, login y perfil del usuario actual."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.security import (
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    verify_password,
+)
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, Token
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.schemas.user import Token, UserCreate, UserResponse
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar un nuevo usuario",
+)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """
-    Registra un nuevo usuario.
-    Verifica que el username y email no estén en uso antes de crear.
-    """
-    # Verificar si el username ya existe
-    if db.query(User).filter(User.username == user_data.username).first():
+    existing = (
+        db.query(User)
+        .filter(or_(User.username == user_data.username, User.email == user_data.email))
+        .first()
+    )
+    if existing:
+        # Se distingue el campo en conflicto porque el registro ya revela
+        # necesariamente si un usuario existe: ocultarlo aquí solo empeora
+        # la usabilidad sin aportar seguridad real.
+        field = "nombre de usuario" if existing.username == user_data.username else "email"
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El nombre de usuario ya está registrado",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Ese {field} ya está registrado",
         )
 
-    # Verificar si el email ya existe
-    if db.query(User).filter(User.email == user_data.email).first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El email ya está registrado",
-        )
-
-    # Crear el usuario con la contraseña hasheada
-    new_user = User(
+    user = User(
         username=user_data.username,
         email=user_data.email,
         hashed_password=get_password_hash(user_data.password),
     )
-    db.add(new_user)
+    db.add(user)
     db.commit()
-    db.refresh(new_user)
-    return new_user
+    db.refresh(user)
+    return user
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, summary="Obtener un token de acceso")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    """
-    Autentica al usuario y devuelve un token JWT.
-    Usa OAuth2PasswordRequestForm para compatibilidad con la UI de /docs.
-    """
-    # Buscar el usuario por username
     user = db.query(User).filter(User.username == form_data.username).first()
 
-    # Verificar credenciales (mismo mensaje de error para no revelar cuál es incorrecto)
+    # Mismo mensaje para usuario inexistente y contraseña incorrecta: el
+    # error no debe revelar qué usuarios existen.
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -66,6 +68,20 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Generar y devolver el token JWT
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return Token(
+        access_token=create_access_token(data={"sub": user.username}),
+        expires_in=settings.access_token_expire_minutes * 60,
+    )
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Perfil del usuario autenticado",
+)
+def read_me(current_user: User = Depends(get_current_user)):
+    """
+    Permite al cliente validar un token guardado al arrancar, en lugar de
+    confiar en lo que haya en localStorage.
+    """
+    return current_user

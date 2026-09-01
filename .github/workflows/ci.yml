@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancela ejecuciones antiguas de la misma rama: no tiene sentido gastar
+# minutos validando un commit que ya fue reemplazado.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint + tests)
+    runs-on: ubuntu-latest
+
+    env:
+      SECRET_KEY: clave-de-integracion-continua-solo-para-los-tests
+      DATABASE_URL: "sqlite://"
+      BCRYPT_ROUNDS: "4"
+      ENVIRONMENT: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check app tests
+
+      - name: Formato
+        run: ruff format --check app tests
+
+      - name: Tests con cobertura
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=85
+
+      - name: Comprobar que las migraciones cubren los modelos
+        # Si un modelo cambió y nadie generó la migración, autogenerate
+        # detectaría diferencias: eso debe romper el build.
+        env:
+          DATABASE_URL: "sqlite:///./ci-check.db"
+        run: |
+          alembic upgrade head
+          alembic check
+
+  frontend:
+    name: Frontend (tests + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build
+
+  docker:
+    name: Imagen Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir la imagen
+        run: docker build -t todo-api:ci .

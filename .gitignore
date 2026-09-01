@@ -1,8 +1,24 @@
+# Python
 venv/
-todo.db
+.venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Entorno y datos locales
 .env
-{app/
+*.db
+*.db.backup-*
+
+# Frontend
 front/node_modules/
 front/dist/
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

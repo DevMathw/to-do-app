@@ -60,3 +60,67 @@
 }
 .addBtn:hover { background: var(--accent-hover); }
 .addBtn:active { transform: scale(0.97); }
+
+.left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.srOnly {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Abre el menú lateral; solo aparece cuando la barra se oculta. */
+.menuBtn {
+  display: none;
+  width: 34px; height: 34px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.menuBtn:hover { border-color: var(--border3); color: var(--text); }
+
+.searchWrap { position: relative; }
+
+.search {
+  width: 180px;
+  padding: 7px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text);
+  transition: border-color var(--transition), box-shadow var(--transition), width var(--transition);
+}
+.search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+  width: 220px;
+}
+.search::placeholder { color: var(--subtle); }
+
+/* --- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .topbar { padding: 14px 16px 12px; gap: 12px; }
+  .menuBtn { display: flex; }
+  .title { font-size: 19px; }
+  .right { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .searchWrap { flex: 1 1 140px; }
+  .search, .search:focus { width: 100%; }
+}
+
+@media (max-width: 620px) {
+  /* Los filtros se desplazan en horizontal en vez de romper la fila. */
+  .filters {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .pill { flex-shrink: 0; }
+  .addBtn { flex: 1 1 auto; justify-content: center; }
+  .date { font-size: 11px; }
+}

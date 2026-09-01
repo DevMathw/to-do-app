@@ -1,0 +1,20 @@
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort: imports ordenados
+    "B",    # bugbear: errores frecuentes
+    "UP",   # pyupgrade
+    "C4",   # comprehensions
+]
+ignore = [
+    "B008",  # Depends() en argumentos por defecto es el patrón de FastAPI
+]
+
+[lint.per-file-ignores]
+# Los tests importan la app después de fijar variables de entorno, y eso
+# obliga a poner imports fuera de la cabecera del archivo.
+"tests/conftest.py" = ["E402"]

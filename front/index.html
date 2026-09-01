@@ -3,12 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>To-Do App</title>
+    <meta name="theme-color" content="#1C5F3A" />
+
+    <title>To-Do App — Gestor de tareas</title>
+    <meta
+      name="description"
+      content="Gestor de tareas full-stack con FastAPI y React: cuentas de usuario, prioridades, etiquetas, fechas límite y aislamiento real de datos por usuario."
+    />
+
+    <!-- Open Graph: sin esto el enlace se comparte como una tarjeta gris. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="To-Do App — Gestor de tareas" />
+    <meta
+      property="og:description"
+      content="Gestor de tareas full-stack con FastAPI y React: cuentas de usuario, prioridades, etiquetas y fechas límite."
+    />
+    <!-- Añade front/public/preview.png y descomenta para que el enlace
+         compartido muestre imagen:
+    <meta property="og:image" content="/preview.png" />
+    -->
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+    <!--
+      Las fuentes se cargan aquí y no con @import dentro del CSS: un @import
+      obliga al navegador a descargar la hoja de estilos antes de descubrir
+      que necesita las fuentes.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

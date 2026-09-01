@@ -1,71 +1,144 @@
-import { useEffect, useState } from 'react'
-import { useAuth }         from '../context/AuthContext'
-import { useTaskStore }    from '../store/useTaskStore'
-import Sidebar             from '../components/Sidebar'
-import TopBar              from '../components/TopBar'
-import StatsRow            from '../components/StatsRow'
-import TaskList            from '../components/TaskList'
-import QuickAdd            from '../components/QuickAdd'
+import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { useTaskStore } from '../store/useTaskStore'
+import Sidebar from '../components/Sidebar'
+import TopBar from '../components/TopBar'
+import StatsRow from '../components/StatsRow'
+import TaskList from '../components/TaskList'
+import QuickAdd from '../components/QuickAdd'
+import { isOverdue, matchesView } from '../lib/taskFilters'
 import s from './DashboardPage.module.css'
 
 export default function DashboardPage() {
-  const { logout }                         = useAuth()
-  const { tasks, fetchTasks, loading }     = useTaskStore()
-  const [view, setView]                    = useState('all')
-  const [priority, setPriority]            = useState('all')
-  const [showQuickAdd, setShowQuickAdd]    = useState(false)
+  const { logout } = useAuth()
+  const { tasks, fetchTasks, loading, error, clearError } = useTaskStore()
+
+  const [view, setView] = useState('all')
+  const [priority, setPriority] = useState('all')
+  const [search, setSearch] = useState('')
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
-    fetchTasks().catch(err => {
-      if (err.message.includes('401')) logout()
-    })
-  }, [])
+    // Un 401 ya cierra la sesión desde el cliente HTTP; aquí solo se evita
+    // que el rechazo quede sin capturar.
+    fetchTasks().catch(() => {})
+  }, [fetchTasks])
 
-  // Keyboard shortcut: N = new task
+  // Atajo: N abre el formulario de nueva tarea.
   useEffect(() => {
-    const handler = e => {
-      if (e.key === 'n' && !e.ctrlKey && !e.metaKey &&
-          document.activeElement.tagName !== 'INPUT' &&
-          document.activeElement.tagName !== 'TEXTAREA') {
+    const isTyping = () => {
+      const el = document.activeElement
+      if (!el) return false
+      return (
+        el.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
+      )
+    }
+
+    const handler = (e) => {
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTyping()) {
+        e.preventDefault()
         setShowQuickAdd(true)
       }
-      if (e.key === 'Escape') setShowQuickAdd(false)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  const pending  = tasks.filter(t => !t.completed).length
-  const done     = tasks.filter(t =>  t.completed).length
-  const pct      = tasks.length ? Math.round((done / tasks.length) * 100) : 0
+  const stats = useMemo(() => {
+    const done = tasks.filter((t) => t.completed).length
+    const overdue = tasks.filter(isOverdue).length
+    return {
+      total: tasks.length,
+      done,
+      pending: tasks.length - done,
+      overdue,
+      pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0,
+    }
+  }, [tasks])
+
+  const visible = useMemo(
+    () =>
+      tasks.filter((task) => {
+        if (!matchesView(task, view)) return false
+        if (priority !== 'all' && task.priority !== priority) return false
+        if (search.trim()) {
+          const needle = search.trim().toLowerCase()
+          const haystack = `${task.title} ${task.description ?? ''}`.toLowerCase()
+          if (!haystack.includes(needle)) return false
+        }
+        return true
+      }),
+    [tasks, view, priority, search],
+  )
 
   return (
     <div className={s.layout}>
       <Sidebar
         view={view}
-        setView={setView}
+        setView={(next) => {
+          setView(next)
+          setMenuOpen(false)
+        }}
         tasks={tasks}
         logout={logout}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
       />
+
+      {menuOpen && (
+        <div
+          className={s.scrim}
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       <div className={s.content}>
         <TopBar
           view={view}
           priority={priority}
           setPriority={setPriority}
+          search={search}
+          setSearch={setSearch}
           onAdd={() => setShowQuickAdd(true)}
+          onOpenMenu={() => setMenuOpen(true)}
         />
 
-        <StatsRow total={tasks.length} done={done} pending={pending} pct={pct} />
+        {error && (
+          <div className={s.errorBar} role="alert">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => {
+                clearError()
+                fetchTasks().catch(() => {})
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
 
-        {/* Progress bar */}
+        <StatsRow {...stats} />
+
         <div className={s.progressWrap}>
           <div className={s.progressRow}>
-            <span className={s.progressLabel}>Progreso semanal</span>
-            <span className={s.progressVal}>{done} / {tasks.length} tareas</span>
+            <span className={s.progressLabel}>Progreso general</span>
+            <span className={s.progressVal}>
+              {stats.done} / {stats.total} tareas
+            </span>
           </div>
-          <div className={s.progressBar}>
-            <div className={s.progressFill} style={{ width: `${pct}%` }} />
+          <div
+            className={s.progressBar}
+            role="progressbar"
+            aria-valuenow={stats.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Tareas completadas"
+          >
+            <div className={s.progressFill} style={{ width: `${stats.pct}%` }} />
           </div>
         </div>
 
@@ -76,38 +149,35 @@ export default function DashboardPage() {
         )}
 
         <div className={s.taskArea}>
-          {loading
-            ? <Spinner />
-            : <TaskList view={view} priority={priority} />
-          }
+          {loading ? (
+            <div className={s.loading}>
+              <span className={s.spinner} aria-hidden="true" />
+              <p>Cargando tus tareas…</p>
+            </div>
+          ) : (
+            <TaskList tasks={visible} />
+          )}
         </div>
       </div>
 
-      {/* FAB */}
       <button
         className={`${s.fab} ${showQuickAdd ? s.fabActive : ''}`}
-        onClick={() => setShowQuickAdd(v => !v)}
-        title="Nueva tarea (N)"
+        onClick={() => setShowQuickAdd((v) => !v)}
+        aria-label="Nueva tarea (tecla N)"
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
-          <path d="M10 4v12M4 10h12"/>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="white"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <path d="M10 4v12M4 10h12" />
         </svg>
       </button>
-    </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
-      <span style={{
-        width: 28, height: 28,
-        border: '2px solid var(--surface3)',
-        borderTopColor: 'var(--accent)',
-        borderRadius: '50%',
-        display: 'inline-block',
-        animation: 'spin 0.7s linear infinite',
-      }} />
     </div>
   )
 }
