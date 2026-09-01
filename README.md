@@ -255,6 +255,44 @@ curl "http://localhost:8000/api/v1/tasks?priority=high&completed=false" \
 
 ---
 
+## Deployment
+
+The frontend is a static build on Vercel; the API runs on Render.
+
+### Frontend (Vercel)
+
+Root directory: `front`. [`front/vercel.json`](front/vercel.json) rewrites
+`/api/*` to the Render service, so the browser only ever talks to the Vercel
+origin.
+
+**Do not set `VITE_API_URL`.** Leaving it unset makes the client use the
+relative path `/api/v1` and go through that rewrite: same origin, no CORS, no
+preflight round trip on an already slow free-tier backend. Setting it to the
+Render URL makes every request cross-origin and requires `CORS_ORIGINS` to be
+kept in sync with the deployment domain.
+
+### API (Render)
+
+[`render.yaml`](render.yaml) describes the service. A service created by hand in
+the dashboard does not read that file, so these two settings have to match it:
+
+| Setting       | Value                                                                    |
+| ------------- | ------------------------------------------------------------------------ |
+| Build command | `pip install -r requirements.txt`                                        |
+| Start command | `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+
+The `alembic upgrade head` is not optional. The application does not create its
+own schema (see [ADR 0003](docs/decisions/0003-alembic-migrations.md)), so
+without it the tables never exist and every request that touches the database
+returns 500.
+
+Required environment variables: `SECRET_KEY` (32+ chars) and `DATABASE_URL`
+pointing at PostgreSQL. Render's free web instances do not persist their
+filesystem, so leaving `DATABASE_URL` on the SQLite default means losing every
+account and task on each restart.
+
+---
+
 ## Technical decisions
 
 Short write-ups of the choices that were not obvious, and what they cost:

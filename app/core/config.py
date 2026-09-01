@@ -9,7 +9,7 @@ conocida públicamente.
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,6 +44,22 @@ class Settings(BaseSettings):
 
     # --- Metadatos ---------------------------------------------------------
     environment: str = "development"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        """
+        Normaliza la URL de PostgreSQL al driver que instalamos.
+
+        Los proveedores gestionados (Render, Heroku, Railway) entregan la
+        cadena como `postgres://`, un esquema que SQLAlchemy 2.0 ya no
+        reconoce, y que además no selecciona psycopg3. Corregirlo aquí evita
+        tener que recordarlo en cada entorno.
+        """
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value[len(prefix) :]
+        return value
 
     @property
     def allowed_origins(self) -> list[str]:
